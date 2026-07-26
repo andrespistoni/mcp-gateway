@@ -1,0 +1,6 @@
+version: 1
+port: 4444
+downstreams:
+  - name: ejemplo
+    prefix: ejemplo__
+    binary: ejemplo-mcp
