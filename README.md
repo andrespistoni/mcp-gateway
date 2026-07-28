@@ -57,7 +57,7 @@ contrario usa `~/.local/bin`. Para elegir una ubicación o versión:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/andrespistoni/mcp-gateway/main/scripts/install.sh -o install.sh
-MCP_GATEWAY_INSTALL_DIR="$HOME/bin" MCP_GATEWAY_VERSION="v0.1.0" sh install.sh
+MCP_GATEWAY_INSTALL_DIR="$HOME/bin" MCP_GATEWAY_VERSION="v0.1.1" sh install.sh
 ```
 
 ### Windows PowerShell
@@ -72,7 +72,7 @@ Para revisar el script o fijar una versión antes de ejecutarlo:
 
 ```powershell
 irm https://raw.githubusercontent.com/andrespistoni/mcp-gateway/main/scripts/install.ps1 -OutFile install.ps1
-$env:MCP_GATEWAY_VERSION = "v0.1.0"
+$env:MCP_GATEWAY_VERSION = "v0.1.1"
 .\install.ps1
 ```
 

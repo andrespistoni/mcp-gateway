@@ -7,6 +7,8 @@ y el proyecto utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-07-28
+
 ### Fixed
 
 - El runner del daemon drena stdout y stderr antes de recolectar el proceso para
@@ -54,5 +56,6 @@ y el proyecto utiliza [Versionado Semántico](https://semver.org/lang/es/).
 - Redacción de secretos estructurados en diagnósticos y archivos de servicio
   restringidos al usuario.
 
-[Unreleased]: https://github.com/andrespistoni/mcp-gateway/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/andrespistoni/mcp-gateway/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/andrespistoni/mcp-gateway/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/andrespistoni/mcp-gateway/releases/tag/v0.1.0

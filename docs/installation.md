@@ -31,7 +31,7 @@ Para fijar versión y ubicación:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/andrespistoni/mcp-gateway/main/scripts/install.sh -o install.sh
-MCP_GATEWAY_VERSION=v0.1.0 \
+MCP_GATEWAY_VERSION=v0.1.1 \
 MCP_GATEWAY_INSTALL_DIR="$HOME/bin" \
 sh install.sh
 ```
@@ -50,7 +50,7 @@ Para fijar una versión:
 
 ```powershell
 irm https://raw.githubusercontent.com/andrespistoni/mcp-gateway/main/scripts/install.ps1 -OutFile install.ps1
-$env:MCP_GATEWAY_VERSION = "v0.1.0"
+$env:MCP_GATEWAY_VERSION = "v0.1.1"
 .\install.ps1
 ```
 
