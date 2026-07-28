@@ -7,6 +7,11 @@ y el proyecto utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Fixed
+
+- El runner del daemon drena stdout y stderr antes de recolectar el proceso para
+  no perder salidas cortas bajo concurrencia.
+
 ## [0.1.0] - 2026-07-28
 
 ### Added

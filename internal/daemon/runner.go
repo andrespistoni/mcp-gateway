@@ -46,8 +46,8 @@ func (directRunner) Run(ctx context.Context, binary string, args []string, limit
 	drains.Add(2)
 	go func() { defer drains.Done(); _, _ = io.Copy(capture, stdout) }()
 	go func() { defer drains.Done(); _, _ = io.Copy(capture, stderr) }()
-	waitErr := command.Wait()
 	drains.Wait()
+	waitErr := command.Wait()
 	result := capture.result()
 	if waitErr != nil {
 		result.ExitCode = 1
