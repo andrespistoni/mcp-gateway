@@ -7,6 +7,8 @@ y el proyecto utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-07-28
+
 ### Fixed
 
 - La negociación inicial acepta versiones MCP propuestas por clientes recientes
@@ -62,6 +64,7 @@ y el proyecto utiliza [Versionado Semántico](https://semver.org/lang/es/).
 - Redacción de secretos estructurados en diagnósticos y archivos de servicio
   restringidos al usuario.
 
-[Unreleased]: https://github.com/andrespistoni/mcp-gateway/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/andrespistoni/mcp-gateway/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/andrespistoni/mcp-gateway/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/andrespistoni/mcp-gateway/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/andrespistoni/mcp-gateway/releases/tag/v0.1.0

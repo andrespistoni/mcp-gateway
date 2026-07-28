@@ -32,7 +32,7 @@ falsos.
 
 ```bash
 bash scripts/build-release.sh \
-  --version v0.1.1 \
+  --version v0.1.2 \
   --output /tmp/mcp-gateway-release
 ```
 
@@ -60,8 +60,8 @@ Los cambios incompatibles usan `!` y un footer `BREAKING CHANGE:`.
 4. Cree y publique el tag:
 
 ```bash
-git tag -a v0.1.1 -m "v0.1.1"
-git push origin v0.1.1
+git tag -a v0.1.2 -m "v0.1.2"
+git push origin v0.1.2
 ```
 
 El workflow valida el tag y el changelog, ejecuta calidad, construye los
