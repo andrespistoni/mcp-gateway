@@ -37,6 +37,8 @@ y el proyecto utiliza [Versionado Semántico](https://semver.org/lang/es/).
   está instalado y en ejecución.
 - El workflow de calidad aplica permisos mínimos, concurrencia controlada y
   referencias inmutables para las Actions utilizadas.
+- El empaquetado normaliza el directorio de salida para generar correctamente
+  archivos ZIP desde sus directorios temporales.
 - Los commits del repositorio siguen Conventional Commits con reglas
   compartidas para agentes.
 

@@ -20,6 +20,9 @@ while (($#)); do
 done
 
 release="${version#v}"
+if [[ "$output" != /* ]]; then
+  output="$PWD/$output"
+fi
 source_date_epoch="${SOURCE_DATE_EPOCH:-$(git -C "$root" show -s --format=%ct "$commit")}"
 targets=(
   "linux/amd64"
