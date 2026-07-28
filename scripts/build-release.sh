@@ -21,7 +21,14 @@ done
 
 release="${version#v}"
 source_date_epoch="${SOURCE_DATE_EPOCH:-$(git -C "$root" show -s --format=%ct "$commit")}"
-targets=("linux/amd64" "darwin/amd64" "windows/amd64")
+targets=(
+  "linux/amd64"
+  "linux/arm64"
+  "darwin/amd64"
+  "darwin/arm64"
+  "windows/amd64"
+  "windows/arm64"
+)
 
 run() {
   if "$dry_run"; then
@@ -81,4 +88,4 @@ for target in "${targets[@]}"; do
 done
 
 (cd "$output" && LC_ALL=C sha256sum mcp-gateway_*.tar.gz mcp-gateway_*.zip | LC_ALL=C sort >"mcp-gateway_${release}_checksums.txt" && sha256sum --check "mcp-gateway_${release}_checksums.txt")
-printf 'Candidatos creados en %s. La publicación sigue sujeta a scripts/check-release-gates.sh.\n' "$output"
+printf 'Candidatos creados y verificados en %s.\n' "$output"

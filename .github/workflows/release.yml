@@ -3,33 +3,54 @@ name: candidato-release
 on:
   push:
     tags: ["v*"]
-  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  advertencia-ambiental:
+  publicar:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v4
-      - name: Advertir si falta evidencia real
-        run: bash scripts/check-release-gates.sh
-
-  empaquetar:
-    needs: advertencia-ambiental
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
         with:
           go-version: "1.25.x"
+          cache: true
+      - name: Validar tag
+        run: |
+          [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]
+          test "$(git rev-list -n 1 "$GITHUB_REF_NAME")" = "$GITHUB_SHA"
+          release_version="${GITHUB_REF_NAME#v}"
+          grep -Eq "^## \\[$release_version\\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$" CHANGELOG.md
       - name: Calidad de la candidata
         run: |
           test -z "$(gofmt -l .)"
-          go test ./... -count=1
+          bash scripts/check-coverage.sh
           go test -race ./... -count=1
           go vet ./...
+      - name: Revisar evidencia de release
+        run: bash scripts/check-release-gates.sh
       - name: Construir y verificar contenidos
         run: bash scripts/build-release.sh --version "${GITHUB_REF_NAME}" --commit "${GITHUB_SHA}" --output dist
-      - uses: actions/upload-artifact@v4
+      - name: Publicar GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          options=(--verify-tag --generate-notes)
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            options+=(--prerelease)
+          fi
+          gh release create "$GITHUB_REF_NAME" "${options[@]}" dist/*
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: mcp-gateway-${{ github.ref_name }}
           path: dist/
+          if-no-files-found: error

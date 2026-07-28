@@ -50,3 +50,33 @@ func TestFromCurrent(t *testing.T) {
 		t.Fatalf("FromCurrent = %q, %v", current.Path(), err)
 	}
 }
+
+func TestFromPathAndOptionalDir(t *testing.T) {
+	directory := t.TempDir()
+	current, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	relative, err := filepath.Rel(current, directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolved, err := FromPath(relative)
+	if err != nil || resolved.Path() != directory {
+		t.Fatalf("FromPath(%q) = %q, %v", relative, resolved.Path(), err)
+	}
+
+	absent := OptionalDir{}
+	if absent.Present() || absent.Path() != "" {
+		t.Fatalf("OptionalDir vacío = %#v", absent)
+	}
+	if _, present := absent.Dir(); present {
+		t.Fatal("OptionalDir vacío no debe estar presente")
+	}
+
+	present := Some(resolved)
+	value, ok := present.Dir()
+	if !present.Present() || present.Path() != directory || !ok || !Compare(value, resolved) {
+		t.Fatalf("Some() = %#v", present)
+	}
+}

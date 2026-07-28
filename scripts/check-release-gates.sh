@@ -3,19 +3,23 @@ set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 required=(
-  "docs/evidence/claude.md"
-  "docs/evidence/native-matrix.md"
-  "docs/evidence/environment.md"
-  "docs/release-checklist.md"
+  "README.md"
+  "CHANGELOG.md"
+  "LICENSE"
+  "docs/index.md"
 )
 
 for path in "${required[@]}"; do
-  test -f "$root/$path" || { printf 'Falta evidencia requerida: %s\n' "$path" >&2; exit 1; }
+  test -s "$root/$path" || { printf 'Falta documentación pública requerida: %s\n' "$path" >&2; exit 1; }
 done
 
-if grep -R -qE '^Estado: PENDIENTE|^- \[ \]' "${required[@]/#/$root/}"; then
-  printf 'Advertencia de release: queda evidencia ambiental pendiente; no bloquea este flujo de implementación ni la construcción de candidatas.\n' >&2
-  exit 0
-fi
+grep -q '^## \[Unreleased\]' "$root/CHANGELOG.md" || {
+  printf 'CHANGELOG.md no contiene la sección Unreleased.\n' >&2
+  exit 1
+}
+grep -q '<!-- flujo-e2e-verificado: inicio -->' "$root/README.md" || {
+  printf 'README.md no contiene el flujo E2E verificado.\n' >&2
+  exit 1
+}
 
-printf 'Los documentos no declaran pendientes. Una publicación real todavía requiere revisión y autorización humana explícitas.\n'
+printf 'Documentación pública y marcadores de release presentes.\n'

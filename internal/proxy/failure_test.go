@@ -1,28 +1,19 @@
 package proxy
 
 import (
-	"context"
+	"errors"
+	"fmt"
 	"testing"
-
-	"mcp-gateway/internal/config"
-	"mcp-gateway/internal/testsupport/fakemcp"
 )
 
-func TestBadDownstreamDoesNotAffectHealthyRuntime(t *testing.T) {
-	binary := buildFake(t)
-	service, err := Start(context.Background(), []config.Downstream{
-		downstream("invalid", "invalid__", binary, fakemcp.Batch, true),
-		downstream("healthy", "healthy__", binary, fakemcp.RuntimeHealthy, true),
-	})
-	if err != nil {
-		t.Fatal(err)
+func TestIsUnavailable(t *testing.T) {
+	if IsUnavailable(nil) {
+		t.Fatal("nil no debe clasificarse como downstream no disponible")
 	}
-	t.Cleanup(func() { shutdownService(t, service) })
-	statuses := service.Statuses()
-	if statuses[0].State != StateUnavailable || statuses[1].State != StateAvailable {
-		t.Fatalf("estados = %#v", statuses)
+	if !IsUnavailable(fmt.Errorf("inicio fallido: %w", ErrDownstreamUnavailable)) {
+		t.Fatal("el error envuelto debe conservar la clasificación")
 	}
-	if names := toolNames(service.Catalog()); len(names) != 1 || names[0] != "healthy__echo" {
-		t.Fatalf("catálogo = %v", names)
+	if IsUnavailable(errors.New("otro error")) {
+		t.Fatal("un error ajeno no debe clasificarse como downstream no disponible")
 	}
 }

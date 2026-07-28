@@ -3,20 +3,28 @@ name: calidad
 on:
   pull_request:
   push:
+    branches: [main]
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: calidad-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   calidad-linux:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
         with:
           go-version: "1.25.x"
       - name: Formato, pruebas, race y vet
         run: |
           test -z "$(gofmt -l .)"
-          go test ./... -count=1
+          bash scripts/check-coverage.sh
           go test -race ./... -count=1
           go vet ./...
       - name: E2E aislado y candidato de build
@@ -33,14 +41,22 @@ jobs:
         include:
           - goos: linux
             goarch: amd64
+          - goos: linux
+            goarch: arm64
           - goos: darwin
             goarch: amd64
+          - goos: darwin
+            goarch: arm64
           - goos: windows
             goarch: amd64
+          - goos: windows
+            goarch: arm64
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
         with:
           go-version: "1.25.x"
       - name: Compilar sin CGO
         run: CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -trimpath -buildvcs=false -o "/tmp/mcp-gateway-${{ matrix.goos }}-${{ matrix.goarch }}" ./cmd/mcp-gateway
+      - name: Compilar tests de componentes
+        run: CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go test -exec=true ./...

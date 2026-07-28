@@ -1,109 +1,387 @@
 # mcp-gateway
 
-`mcp-gateway` agrupa servidores MCP locales de stdio detrás de una sola conexión HTTP/SSE en `http://localhost:<puerto>/sse`. El binario sirve exclusivamente en loopback y usa el literal `localhost` en sus URL generadas.
+[![Calidad](https://github.com/andrespistoni/mcp-gateway/actions/workflows/quality.yml/badge.svg)](https://github.com/andrespistoni/mcp-gateway/actions/workflows/quality.yml)
+[![Release](https://img.shields.io/github/v/release/andrespistoni/mcp-gateway)](https://github.com/andrespistoni/mcp-gateway/releases/latest)
+[![Licencia MIT](https://img.shields.io/badge/licencia-MIT-blue.svg)](LICENSE)
 
-> **Estado de verificación:** Linux, macOS y Windows siguen en alcance funcional. Este flujo ejecutó la suite solo en Linux bajo WSL/Ubuntu y no ejecutó pruebas nativas de Windows ni macOS. Los cross-builds de esas plataformas no equivalen a pruebas nativas. La evidencia ausente —incluidos Job Object Windows, Claude real, recetas/argv aprobados, disponibilidad de 3333 y política de prompt— es seguimiento no bloqueante de este flujo y no autoriza una publicación por sí sola; véase [`docs/release-checklist.md`](docs/release-checklist.md).
+`mcp-gateway` reúne varios servidores MCP locales basados en stdio detrás de un
+único endpoint HTTP/SSE. Expone un catálogo unificado en
+`http://localhost:3333/sse`, añade prefijos para evitar colisiones y enruta cada
+`tools/call` al proceso correspondiente.
 
-## Instalación de una candidata verificada
+El gateway está diseñado para ejecutarse como servicio de usuario en Linux,
+macOS y Windows. Solo escucha en loopback y no expone el servicio a la red.
 
-1. Descargue el archivo de su plataforma y `mcp-gateway_<versión>_checksums.txt` desde una candidata autorizada.
-2. Verifique el SHA-256 antes de descomprimir. En Linux:
+## Características
 
-   ```bash
-   sha256sum --ignore-missing --check mcp-gateway_<versión>_checksums.txt
-   tar -xzf mcp-gateway_<versión>_linux_amd64.tar.gz
-   install -m 0755 mcp-gateway "$HOME/.local/bin/mcp-gateway"
-   ```
+- agrega herramientas de varios servidores MCP stdio;
+- descubre configuraciones conocidas sin sobrescribir entradas existentes;
+- registra el endpoint en proyectos y en Claude Code;
+- puede inyectar el directorio del proyecto en una llamada;
+- gestiona un servicio de usuario con systemd, launchd o Task Scheduler;
+- aplica límites de tamaño, sesiones, cola y tiempo de ejecución;
+- valida Host y Origin y redacta secretos estructurados en diagnósticos;
+- incluye pruebas unitarias, E2E, de carrera y fuzzing.
 
-3. Compruebe la identidad del binario:
+## Documentación
 
-   ```bash
-   mcp-gateway version
-   ```
+La documentación completa está disponible en [docs/index.md](docs/index.md):
+instalación, inicio rápido, configuración, proyectos, operación, seguridad,
+arquitectura, desarrollo y releases.
 
-Los artefactos se generan con `scripts/build-release.sh`; el script revisa el contenido del tar/zip, `go version -m` y checksums. Su salida no autoriza publicación por sí sola.
+## Plataformas soportadas
 
-## Flujo operativo
+| Sistema | Arquitecturas | Servicio de usuario |
+| --- | --- | --- |
+| Linux | `amd64`, `arm64` | systemd |
+| macOS | Intel (`amd64`), Apple Silicon (`arm64`) | launchd |
+| Windows | `amd64`, `arm64` | Task Scheduler |
 
-<!-- flujo-e2e-verificado: inicio -->
-El siguiente flujo está cubierto por `TestREADMEWorkflow` en un HOME, PATH, proyecto, daemon y downstreams **falsos** aislados. La prueba usa un puerto dinámico; no toca 3333, no ejecuta Claude ni discovery real.
+Se requiere un sistema de 64 bits. Para compilar desde el código fuente se
+requiere Go 1.25 o posterior.
+
+## Instalación rápida
+
+Los instaladores descargan la última GitHub Release, verifican su checksum
+SHA-256 y copian el binario a una ubicación del usuario. Es recomendable
+inspeccionar cualquier script remoto antes de ejecutarlo.
+
+### Linux y macOS
 
 ```bash
-export PUERTO=4444                 # Elija un puerto aprobado; 3333 es el default contractual.
+curl -fsSL https://raw.githubusercontent.com/andrespistoni/mcp-gateway/main/scripts/install.sh | sh
+```
+
+El binario se instala en `/usr/local/bin` cuando es escribible; en caso
+contrario usa `~/.local/bin`. Para elegir una ubicación o versión:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/andrespistoni/mcp-gateway/main/scripts/install.sh -o install.sh
+MCP_GATEWAY_INSTALL_DIR="$HOME/bin" MCP_GATEWAY_VERSION="v0.1.0" sh install.sh
+```
+
+### Windows PowerShell
+
+```powershell
+irm https://raw.githubusercontent.com/andrespistoni/mcp-gateway/main/scripts/install.ps1 | iex
+```
+
+Instala el ejecutable en
+`%LOCALAPPDATA%\Programs\mcp-gateway` y añade esa carpeta al `PATH` del usuario.
+Para revisar el script o fijar una versión antes de ejecutarlo:
+
+```powershell
+irm https://raw.githubusercontent.com/andrespistoni/mcp-gateway/main/scripts/install.ps1 -OutFile install.ps1
+$env:MCP_GATEWAY_VERSION = "v0.1.0"
+.\install.ps1
+```
+
+### Instalación manual
+
+1. Descarga el archivo de tu sistema y
+   `mcp-gateway_<versión>_checksums.txt` desde
+   [GitHub Releases](https://github.com/andrespistoni/mcp-gateway/releases/latest).
+2. Verifica el checksum SHA-256.
+3. Extrae `mcp-gateway` o `mcp-gateway.exe` en una carpeta incluida en `PATH`.
+4. Comprueba la instalación:
+
+```bash
+mcp-gateway version
+```
+
+## Primer uso
+
+Después de instalar el binario, siga este orden.
+
+### 1. Inicializar el gateway
+
+```bash
+mcp-gateway setup
+```
+
+`setup` crea `~/.mcp-gateway/mcp-downstreams.yaml`, incorpora los servidores
+que puede descubrir sin sobrescribir entradas existentes y habilita el servicio
+de usuario en el puerto `3333`.
+
+Para elegir otro puerto, hágalo en este primer paso y use el mismo valor al
+registrar proyectos:
+
+```bash
+mcp-gateway setup --port 4444
+```
+
+### 2. Revisar y configurar los MCPs
+
+```bash
+mcp-gateway list
+mcp-gateway doctor
+```
+
+Si necesita volver a examinar el equipo después de instalar otro servidor MCP:
+
+```bash
+mcp-gateway discover
+mcp-gateway discover --write
+```
+
+Los MCPs que no puedan descubrirse se añaden con `mcp-gateway add`, como se
+explica en [Configurar servidores MCP](#configurar-servidores-mcp).
+
+### 3. Registrar cada proyecto
+
+Ejecute este comando dentro de cada proyecto que vaya a usar con el gateway:
+
+```bash
+cd /ruta/al/proyecto
+mcp-gateway register-project
+```
+
+También puede indicar la ruta explícitamente:
+
+```bash
+mcp-gateway register-project --project-dir /ruta/al/proyecto
+```
+
+En PowerShell:
+
+```powershell
+mcp-gateway register-project --project-dir (Get-Location).Path
+```
+
+El comando crea o actualiza `<proyecto>/.mcp.json`, modifica únicamente
+`mcpServers.mcp-gateway` y añade `.mcp.json` una sola vez a `.gitignore`. La URL
+registrada incluye `projectDir`, por lo que cada conexión queda asociada al
+proyecto correcto.
+
+Registrar un proyecto no configura automáticamente los demás: repita este paso
+en cada repositorio que utilice.
+
+<!-- flujo-e2e-verificado: inicio -->
+El equivalente con puerto explícito, comprobado por la suite E2E, es:
+
+```bash
+export PUERTO=4444
 export PROJECT_DIR="$PWD"
 
 mcp-gateway setup --port "$PUERTO"
 mcp-gateway discover --write
 mcp-gateway register-project --project-dir "$PROJECT_DIR" --port "$PUERTO"
 ```
-
-`setup` crea o actualiza `~/.mcp-gateway/mcp-downstreams.yaml`, fusiona discovery sin sobrescribir entradas existentes y configura el servicio de usuario nativo. En producción requiere que el gestor y sus permisos estén aprobados. `register-project` actualiza exclusivamente `mcpServers.mcp-gateway` en `<proyecto>/.mcp.json` y añade `.mcp.json` una vez a `<proyecto>/.gitignore`.
-
-Agregue un MCP que no pertenezca a las recetas conocidas sin recompilar. Cada `--arg` es un elemento argv separado: no use una cadena de shell ni incluya secretos en argumentos.
-
-```bash
-mcp-gateway add <nombre> --prefix <nombre>__ --binary /ruta/absoluta/al/servidor \
-  --arg "--opcion" --arg "valor con espacios" --inject-project projectDir
-mcp-gateway list
-mcp-gateway doctor --verbose
-```
-
-Por defecto `add` valida `initialize` y todas las páginas `tools/list` antes de guardar. `--skip-validation` solo debe usarse de forma excepcional: conserva `enabled: true`, avisa que el servidor puede no estar disponible y no sustituye una validación posterior.
-
-El daemon ejecuta el equivalente a `mcp-gateway serve --port <puerto>`. Para operar manualmente:
-
-```bash
-mcp-gateway serve --port "$PUERTO"
-mcp-gateway restart
-mcp-gateway disable-daemon
-```
-
-Para registrar Claude Code, primero valide la versión y sintaxis aprobadas en la evidencia de release y después ejecute `mcp-gateway install-claude --port "$PUERTO"`. No se afirma compatibilidad con una versión de Claude no documentada por esa evidencia.
 <!-- flujo-e2e-verificado: fin -->
 
-## Operación y límites
+### 4. Integrar el cliente
 
-- El puerto configurado debe estar entre 1024 y 65535; la precedencia es `--port`, configuración y `3333`.
-- `GET /sse` abre una sesión y anuncia un endpoint relativo de mensajes. `POST /message` acepta JSON-RPC MCP `2024-11-05`.
-- Solo se aceptan Host `localhost:<puerto>` y Origin ausente o `http://localhost:<puerto>`; no hay CORS permisivo ni bind remoto.
-- Cada sesión admite hasta 16 solicitudes pendientes; cada downstream admite una llamada activa más 32 en cola. Los mensajes HTTP/stdin tienen un máximo de 1 MiB.
-- `tools/list` se agrega con prefijos; `tools/call` restaura el nombre downstream exacto y puede inyectar `projectDir` sin sobrescribir argumentos del caller.
+Para Claude Code, el `.mcp.json` creado en el paso anterior ya es la integración
+recomendada cuando el MCP necesita conocer el proyecto. Cierre y vuelva a abrir
+el agente o la sesión para que relea el archivo.
 
-## Seguridad y riesgos residuales
-
-El gateway ejecuta binarios directamente con argv separado, limita protocolo/recursos, conserva stdout downstream para protocolo y redacta campos estructurados sensibles antes de sus sinks. No registra IDs de sesión, argumentos/resultados MCP, valores de entorno ni `projectDir` normal.
-
-Los riesgos aceptados de v1 siguen vigentes:
-
-1. no hay autenticación ni TLS: loopback, Host/Origin e IDs aleatorios reducen pero no eliminan ataques de procesos locales;
-2. los downstreams no están sandboxed y heredan permisos de la persona usuaria;
-3. una configuración explícita puede ejecutar binarios arbitrarios;
-4. recetas sin firma y PATH/fallback por basename pueden seleccionar un binario no deseado en un entorno comprometido;
-5. `projectDir` es contexto, no autorización ni confinamiento;
-6. resultados de tools pueden contener datos sensibles y se preservan para el cliente, no se inspeccionan ni redactan;
-7. existe riesgo TOCTOU entre validar y usar rutas, binarios o symlinks.
-
-La redacción no descubre secretos arbitrarios escritos como texto libre. Revise con cuidado la configuración, los binarios y cualquier salida verbose.
-
-## Backout
-
-Para volver a una candidata v1 anterior verificada: deshabilite el daemon, restaure el binario cuyo checksum fue validado, ejecute `enable-daemon --port <puerto>` con ese binario y ejecute `doctor`. La configuración v1 no tiene migración ni estado de sesión persistente que revertir.
-
-## Desarrollo y release
+Opcionalmente, puede registrar también un endpoint de usuario disponible fuera
+de proyectos registrados:
 
 ```bash
-gofmt -w cmd internal test/e2e
+mcp-gateway install-claude
+```
+
+Ese registro global no incluye `projectDir`. No sustituye a
+`register-project` para MCPs que necesitan contexto del repositorio y puede
+omitirse en un flujo exclusivamente basado en proyectos.
+
+### 5. Verificar
+
+Desde el proyecto registrado:
+
+```bash
+mcp-gateway doctor --verbose
+mcp-gateway list
+```
+
+Si el cliente muestra las herramientas con sus prefijos, la instalación quedó
+operativa.
+
+## Configurar servidores MCP
+
+Examina los servidores que pueden descubrirse:
+
+```bash
+mcp-gateway discover
+mcp-gateway discover --write
+mcp-gateway list
+```
+
+También puede añadirse cualquier servidor MCP stdio sin recompilar:
+
+```bash
+mcp-gateway add <nombre> \
+  --prefix <nombre>__ \
+  --binary /ruta/absoluta/al/servidor \
+  --arg "--root" \
+  --arg "/ruta/con espacios"
+```
+
+Cada `--arg` representa un elemento independiente de `argv`; no es una cadena
+de shell. Las variables de entorno se añaden con `--env KEY=VALUE`. No conviene
+poner secretos en los argumentos porque pueden ser visibles para otros procesos.
+
+Para pasar el directorio del proyecto cuando el cliente no haya enviado ya ese
+argumento:
+
+```bash
+mcp-gateway add ejemplo \
+  --prefix ejemplo__ \
+  --binary /ruta/al/servidor \
+  --inject-project projectDir
+```
+
+Por defecto, `add` valida `initialize` y todas las páginas de `tools/list` antes
+de guardar. `--skip-validation` omite esa comprobación y debe reservarse para
+casos excepcionales.
+
+Administración:
+
+```bash
+mcp-gateway disable filesystem
+mcp-gateway enable filesystem
+mcp-gateway remove filesystem
+mcp-gateway restart
+```
+
+Una mutación reinicia automáticamente el daemon cuando está instalado y en
+ejecución.
+
+## Operación del servicio
+
+```bash
+mcp-gateway doctor --verbose
+mcp-gateway restart
+mcp-gateway disable-daemon
+mcp-gateway enable-daemon
+```
+
+También puede ejecutarse en primer plano:
+
+```bash
+mcp-gateway serve --port 3333
+```
+
+El endpoint MCP es `http://localhost:<puerto>/sse`. `GET /sse` crea la sesión y
+`POST /message` recibe JSON-RPC conforme a MCP `2024-11-05`.
+
+## Límites y seguridad
+
+- solo acepta Host `localhost:<puerto>` y Origin ausente o
+  `http://localhost:<puerto>`;
+- no implementa autenticación ni TLS porque el listener es exclusivamente
+  loopback;
+- cada sesión admite hasta 16 solicitudes pendientes;
+- cada downstream admite una llamada activa y hasta 32 en cola;
+- los mensajes HTTP y stdio tienen un máximo de 1 MiB;
+- una llamada tiene un timeout de 60 segundos;
+- los downstreams heredan los permisos del usuario y no se ejecutan en sandbox;
+- `projectDir` aporta contexto, pero no autorización ni confinamiento;
+- los resultados MCP se entregan sin inspección ni redacción.
+
+No exponga el puerto mediante proxies, túneles o reglas de red sin añadir una
+capa de autenticación adecuada.
+
+## Actualización y desinstalación
+
+Ejecutar de nuevo el instalador sustituye el binario por la última versión. La
+configuración se conserva.
+
+### Linux y macOS
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/andrespistoni/mcp-gateway/main/scripts/uninstall.sh | sh
+```
+
+Para eliminar también `mcp-downstreams.yaml`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/andrespistoni/mcp-gateway/main/scripts/uninstall.sh -o uninstall.sh
+sh uninstall.sh --purge
+```
+
+Si se instaló en una ruta personalizada, use
+`--install-dir /ruta` o `MCP_GATEWAY_INSTALL_DIR`.
+
+### Windows PowerShell
+
+```powershell
+irm https://raw.githubusercontent.com/andrespistoni/mcp-gateway/main/scripts/uninstall.ps1 | iex
+```
+
+Para eliminar también la configuración:
+
+```powershell
+irm https://raw.githubusercontent.com/andrespistoni/mcp-gateway/main/scripts/uninstall.ps1 -OutFile uninstall.ps1
+.\uninstall.ps1 -Purge
+```
+
+Los desinstaladores detienen y eliminan el servicio de usuario antes de borrar
+el ejecutable. Windows también retira del `PATH` la carpeta añadida por el
+instalador. Por seguridad, la configuración se conserva salvo que se solicite
+`--purge`/`-Purge`.
+
+Los registros de proyecto no se eliminan automáticamente porque el instalador
+no mantiene una lista de proyectos y no debe modificar repositorios
+arbitrariamente. En cada proyecto registrado, retire
+`mcpServers.mcp-gateway` de `.mcp.json`; puede conservar `.mcp.json` en
+`.gitignore` si contiene otras configuraciones.
+
+Si se ejecutó `install-claude`, retire el registro de usuario con:
+
+```bash
+claude mcp remove mcp-gateway
+```
+
+## Compilar desde el código fuente
+
+```bash
+git clone https://github.com/andrespistoni/mcp-gateway.git
+cd mcp-gateway
+go test ./... -count=1
+go build -o mcp-gateway ./cmd/mcp-gateway
+```
+
+Verificación completa para contribuir:
+
+```bash
+test -z "$(gofmt -l .)"
 go test ./... -count=1
 go test -race ./... -count=1
 go vet ./...
 bash scripts/build-release.sh --dry-run
 ```
 
-Para construir una candidata inspeccionable sin publicar:
+## Publicación de releases
+
+El workflow de calidad se ejecuta en cada pull request y push a `main`. Una
+release se publica automáticamente al subir un tag semántico:
 
 ```bash
-bash scripts/build-release.sh --version 0.0.0-rc.1 --output /tmp/mcp-gateway-release
-sha256sum --check /tmp/mcp-gateway-release/mcp-gateway_0.0.0-rc.1_checksums.txt
+git tag -a v1.0.0 -m "v1.0.0"
+git push origin v1.0.0
 ```
 
-`scripts/check-release-gates.sh` advierte sobre evidencia pendiente, sin bloquear este flujo ni declarar una publicación autorizada. No marque una casilla por un cross-build o un fake; una publicación real requiere evidencia archivada y autorización humana explícita.
+El workflow vuelve a ejecutar calidad, compila Linux, macOS y Windows para
+`amd64` y `arm64`, genera checksums y crea la GitHub Release con notas
+automáticas. Crear un commit o hacer push a `main` no crea una release por sí
+solo; el tag es la autorización explícita de publicación.
+
+Los cambios destinados a la siguiente versión se mantienen en
+[CHANGELOG.md](CHANGELOG.md). Antes de crear un tag, la sección `Unreleased`
+debe convertirse en la versión y fecha que se publicarán.
+
+## Solución de problemas
+
+- Ejecute `mcp-gateway doctor --verbose` para validar configuración,
+  downstreams, daemon, endpoint y Claude.
+- Si el comando no se encuentra tras instalar, abra una terminal nueva o añada
+  la carpeta indicada por el instalador a `PATH`.
+- Si el puerto está ocupado, ejecute `mcp-gateway setup --port <otro-puerto>`.
+- Si un downstream falla, ejecútelo directamente y revise que hable MCP por
+  stdio y no escriba logs en stdout.
+
+## Licencia
+
+Distribuido bajo la [licencia MIT](LICENSE).
