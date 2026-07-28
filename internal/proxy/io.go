@@ -13,6 +13,7 @@ type readResult struct {
 
 type writeRequest struct {
 	envelope mcp.Envelope
+	started  chan struct{}
 	done     chan error
 }
 
@@ -42,6 +43,9 @@ func writeStdin(stdin io.WriteCloser, requests <-chan writeRequest) {
 	defer stdin.Close()
 	codec := mcp.NewCodec(nil, stdin)
 	for request := range requests {
+		if request.started != nil {
+			close(request.started)
+		}
 		request.done <- codec.Write(request.envelope)
 	}
 }

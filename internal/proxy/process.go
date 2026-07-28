@@ -18,19 +18,22 @@ type startupResult struct {
 }
 
 type managedProcess struct {
-	tree        proc.ProcessTree
-	requests    chan writeRequest
-	inbound     chan readResult
-	stop        chan struct{}
-	actorGone   chan struct{}
-	done        chan struct{}
-	waitDone    chan struct{}
-	stopOnce    sync.Once
-	ioWG        sync.WaitGroup
-	stderr      stderrCapture
-	onFailure   func(error)
-	intentMu    sync.Mutex
-	intentional bool
+	tree          proc.ProcessTree
+	requests      chan writeRequest
+	inbound       chan readResult
+	calls         chan *call
+	cancellations chan *call
+	credits       chan struct{}
+	stop          chan struct{}
+	actorGone     chan struct{}
+	done          chan struct{}
+	waitDone      chan struct{}
+	stopOnce      sync.Once
+	ioWG          sync.WaitGroup
+	stderr        stderrCapture
+	onFailure     func(error)
+	intentMu      sync.Mutex
+	intentional   bool
 }
 
 func startManagedProcess(ctx context.Context, spec proc.ExecSpec, starter processStarter, onFailure func(error)) (*managedProcess, []mcp.Tool, error) {
@@ -40,8 +43,13 @@ func startManagedProcess(ctx context.Context, spec proc.ExecSpec, starter proces
 	}
 	process := &managedProcess{
 		tree: tree, requests: make(chan writeRequest), inbound: make(chan readResult, 1),
-		stop: make(chan struct{}), actorGone: make(chan struct{}), done: make(chan struct{}),
+		calls: make(chan *call, maxQueuedCalls), cancellations: make(chan *call, maxQueuedCalls+1),
+		credits: make(chan struct{}, maxQueuedCalls),
+		stop:    make(chan struct{}), actorGone: make(chan struct{}), done: make(chan struct{}),
 		waitDone: make(chan struct{}), onFailure: onFailure,
+	}
+	for range maxQueuedCalls {
+		process.credits <- struct{}{}
 	}
 	startup := make(chan startupResult, 1)
 	go process.runIO()

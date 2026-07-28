@@ -121,13 +121,26 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 				if scenario == RuntimeInvalid {
 					_, _ = io.WriteString(stdout, "invalid runtime output\n")
 				}
-				for {
-					if _, err := codec.Read(); err != nil {
-						return 0
-					}
-				}
+				return serveRuntimeCalls(codec)
 			}
 			return 0
+		}
+	}
+}
+
+func serveRuntimeCalls(codec *mcp.Codec) int {
+	for {
+		request, err := codec.Read()
+		if err != nil {
+			return 0
+		}
+		if request.Kind() != mcp.Request || request.Method() != "tools/call" {
+			return 7
+		}
+		id, _ := request.ID()
+		result, _ := mcp.NewResult(id, map[string]any{"echo": json.RawMessage(request.Params()), "futureResult": true})
+		if err := codec.Write(result); err != nil {
+			return 8
 		}
 	}
 }

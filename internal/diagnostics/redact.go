@@ -9,7 +9,7 @@ const Redacted = "[REDACTADO]"
 
 var sensitiveFragments = [...]string{"TOKEN", "SECRET", "PASSWORD", "KEY", "AUTH"}
 
-var structuredSecret = regexp.MustCompile(`(?i)([A-Za-z_][A-Za-z0-9_.-]*(?:TOKEN|SECRET|PASSWORD|KEY|AUTH)[A-Za-z0-9_.-]*)(\s*[:=]\s*)("[^"]*"|[^\s,;}]+)`)
+var structuredSecret = regexp.MustCompile(`(?i)((?:"|')?(?:[A-Za-z_][A-Za-z0-9_.-]*?)?(?:TOKEN|SECRET|PASSWORD|KEY|AUTH)[A-Za-z0-9_.-]*(?:"|')?)(\s*[:=]\s*)("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^\s,;}]+)`)
 
 func IsSensitiveKey(key string) bool {
 	upper := strings.ToUpper(key)
@@ -28,7 +28,7 @@ func RedactValue(key, value string) string {
 	return value
 }
 
-// RedactText cubre formas estructuradas simples KEY=VALUE y KEY: VALUE.
+// RedactText cubre formas estructuradas simples KEY=VALUE, YAML y JSON.
 func RedactText(value string) string {
 	return structuredSecret.ReplaceAllString(value, `${1}${2}`+Redacted)
 }

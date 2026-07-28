@@ -1,0 +1,46 @@
+name: calidad
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+jobs:
+  calidad-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.x"
+      - name: Formato, pruebas, race y vet
+        run: |
+          test -z "$(gofmt -l .)"
+          go test ./... -count=1
+          go test -race ./... -count=1
+          go vet ./...
+      - name: E2E aislado y candidato de build
+        run: |
+          go test ./test/e2e -count=1
+          bash scripts/build-release.sh --dry-run
+
+  compilacion-candidata:
+    name: compilacion-${{ matrix.goos }}-${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: darwin
+            goarch: amd64
+          - goos: windows
+            goarch: amd64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.x"
+      - name: Compilar sin CGO
+        run: CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -trimpath -buildvcs=false -o "/tmp/mcp-gateway-${{ matrix.goos }}-${{ matrix.goarch }}" ./cmd/mcp-gateway

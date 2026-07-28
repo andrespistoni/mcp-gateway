@@ -6,6 +6,7 @@ import (
 
 	"mcp-gateway/internal/claude"
 	"mcp-gateway/internal/config"
+	"mcp-gateway/internal/daemon"
 	"mcp-gateway/internal/discovery"
 	"mcp-gateway/internal/proc"
 	"mcp-gateway/internal/proxy"
@@ -39,6 +40,8 @@ type Runtime struct {
 	mutationCommitted func(context.Context) error
 	projectRegistrar  projectRegistrar
 	claudeRegistrar   claudeRegistrar
+	daemonManager     daemon.Manager
+	doctorClaude      func(context.Context) error
 	startProxy        proxyFactory
 }
 
@@ -49,6 +52,7 @@ func NewRuntime(repository configLoader) *Runtime {
 		probe:            proxy.Probe,
 		projectRegistrar: claude.NewDefaultProjectRegistrar(),
 		claudeRegistrar:  claude.NewDefaultCLIRegistrar(),
+		daemonManager:    daemon.NewDefaultManager(),
 		startProxy: func(ctx context.Context, downstreams []config.Downstream) (startupProxy, error) {
 			return proxy.Start(ctx, downstreams)
 		},

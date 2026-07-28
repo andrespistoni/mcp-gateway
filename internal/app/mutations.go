@@ -21,8 +21,8 @@ func (r *Runtime) Remove(ctx context.Context, name string) (bool, error) {
 		}
 		return diagnostics.NewFault(diagnostics.Validation, "el downstream no existe", nil)
 	})
-	if err == nil && change.Changed && r.mutationCommitted != nil {
-		err = r.mutationCommitted(ctx)
+	if err == nil && change.Changed {
+		err = r.afterMutation(ctx)
 	}
 	return change.Changed, err
 }
@@ -41,8 +41,31 @@ func (r *Runtime) SetEnabled(ctx context.Context, name string, enabled bool) (bo
 		}
 		return diagnostics.NewFault(diagnostics.Validation, "el downstream no existe", nil)
 	})
-	if err == nil && change.Changed && r.mutationCommitted != nil {
-		err = r.mutationCommitted(ctx)
+	if err == nil && change.Changed {
+		err = r.afterMutation(ctx)
 	}
 	return change.Changed, err
+}
+
+// afterMutation runs only after the configuration transaction has committed.
+// A lifecycle failure is intentionally returned without attempting to undo the
+// confirmed configuration change.
+func (r *Runtime) afterMutation(ctx context.Context) error {
+	if r.mutationCommitted != nil {
+		return r.mutationCommitted(ctx)
+	}
+	if r.daemonManager == nil {
+		return nil
+	}
+	status, err := r.daemonManager.Status(ctx)
+	if err != nil {
+		return diagnostics.NewFault(diagnostics.Process, "no se pudo consultar el daemon tras la mutación", err)
+	}
+	if !status.Installed || !status.Running {
+		return nil
+	}
+	if err := r.daemonManager.Restart(ctx); err != nil {
+		return diagnostics.NewFault(diagnostics.Process, "la mutación se guardó, pero no se pudo reiniciar el daemon", err)
+	}
+	return nil
 }

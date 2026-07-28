@@ -50,6 +50,26 @@ func Run(ctx context.Context, args []string, streams Streams, application Applic
 			return 1
 		}
 		return 0
+	case "setup":
+		setup, ok := application.(setupApplication)
+		if !ok {
+			return unavailableCommand(streams.Err, command.name)
+		}
+		if err := writeSetup(ctx, streams.Out, setup, command); err != nil {
+			_, _ = fmt.Fprintln(streams.Err, "error:", diagnostics.ExternalMessage(err))
+			return 1
+		}
+		return 0
+	case "doctor":
+		doctor, ok := application.(doctorApplication)
+		if !ok {
+			return unavailableCommand(streams.Err, command.name)
+		}
+		if err := writeDoctor(ctx, streams.Out, doctor, command); err != nil {
+			_, _ = fmt.Fprintln(streams.Err, "error:", diagnostics.ExternalMessage(err))
+			return 1
+		}
+		return 0
 	case "add":
 		adder, ok := application.(addApplication)
 		if !ok {
@@ -86,6 +106,26 @@ func Run(ctx context.Context, args []string, streams Streams, application Applic
 			return unavailableCommand(streams.Err, command.name)
 		}
 		if err := writeInstallClaude(ctx, streams.Out, registrar, command); err != nil {
+			_, _ = fmt.Fprintln(streams.Err, "error:", diagnostics.ExternalMessage(err))
+			return 1
+		}
+		return 0
+	case "serve":
+		server, ok := application.(serveApplication)
+		if !ok {
+			return unavailableCommand(streams.Err, command.name)
+		}
+		if err := runServe(ctx, server, command); err != nil {
+			_, _ = fmt.Fprintln(streams.Err, "error:", diagnostics.ExternalMessage(err))
+			return 1
+		}
+		return 0
+	case "enable-daemon", "disable-daemon", "restart":
+		manager, ok := application.(daemonApplication)
+		if !ok {
+			return unavailableCommand(streams.Err, command.name)
+		}
+		if err := writeDaemon(ctx, streams.Out, manager, command); err != nil {
 			_, _ = fmt.Fprintln(streams.Err, "error:", diagnostics.ExternalMessage(err))
 			return 1
 		}
