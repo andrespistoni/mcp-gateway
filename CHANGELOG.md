@@ -7,6 +7,12 @@ y el proyecto utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Fixed
+
+- La negociación inicial acepta versiones MCP propuestas por clientes recientes
+  y responde con la versión compatible del gateway, evitando `Invalid params`
+  al conectar Claude Code.
+
 ## [0.1.1] - 2026-07-28
 
 ### Fixed

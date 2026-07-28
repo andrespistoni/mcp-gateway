@@ -86,7 +86,7 @@ func (s *Server) dispatch(id mcp.RawID, envelope mcp.Envelope) mcp.Envelope {
 		var params struct {
 			ProtocolVersion string `json:"protocolVersion"`
 		}
-		if err := json.Unmarshal(envelope.Params(), &params); err != nil || params.ProtocolVersion != mcp.ProtocolVersion {
+		if err := json.Unmarshal(envelope.Params(), &params); err != nil || params.ProtocolVersion == "" {
 			response, _ := mcp.NewError(id, mcp.RPCError{Code: -32602, Message: "Invalid params"})
 			return response
 		}
